@@ -24,7 +24,8 @@ import {
   MoreHorizontal,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DeleteConfirmDialog } from "../features/delete-confirm-dialog";
 import { RenameDialog } from "../features/rename-confirm-dialog";
 
@@ -33,24 +34,55 @@ interface FolderTreeProps {
   depth?: number;
 }
 
-function ContextMenu({
+interface MenuPosition {
+  top: number;
+  left: number;
+}
+
+function ItemContextMenu({
   item,
+  position,
   onClose,
 }: {
   item: WorkspaceItem;
+  position: MenuPosition;
   onClose: () => void;
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  return (
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [adjustedPos, setAdjustedPos] = useState(position);
+
+  useEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let { top, left } = position;
+    if (left + rect.width > vw) left = vw - rect.width - 8;
+    if (top + rect.height > vh) top = top - rect.height - 4;
+    setAdjustedPos({ top, left });
+  }, [position]);
+
+  const menu = (
     <>
       <div
-        className="absolute left-full top-0 z-30 ml-1 min-w-35 rounded-lg border bg-background p-1 shadow-lg"
+        className="fixed inset-0 z-998"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+
+      <div
+        ref={menuRef}
+        className="fixed z-999 min-w-36 rounded-lg border bg-background p-1 shadow-xl"
+        style={{ top: adjustedPos.top, left: adjustedPos.left }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs hover:bg-muted"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs text-foreground hover:bg-muted"
           onClick={() => {
             onClose();
             setRenameOpen(true);
@@ -72,28 +104,37 @@ function ContextMenu({
           Delete
         </button>
       </div>
-      {renameOpen && (
-        <RenameDialog
-          open
-          onClose={() => setRenameOpen(false)}
-          item={item}
-        />
-      )}
-      {deleteOpen && (
-        <DeleteConfirmDialog
-          open
-          onClose={() => setDeleteOpen(false)}
-          item={item}
-        />
-      )}
+
+      {renameOpen &&
+        createPortal(
+          <RenameDialog open onClose={() => setRenameOpen(false)} item={item} />,
+          document.body,
+        )}
+      {deleteOpen &&
+        createPortal(
+          <DeleteConfirmDialog
+            open
+            onClose={() => setDeleteOpen(false)}
+            item={item}
+          />,
+          document.body,
+        )}
     </>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(menu, document.body)
+    : null;
 }
 
 export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
   const { state, dispatch } = useWorkspace();
   const { getChildren } = useFileSystem();
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<MenuPosition>({ top: 0, left: 0 });
+  const [hovered, setHovered] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   const isFolder = item.type === "folder";
   const isExpanded = state.expandedFolderIds.includes(item.id);
@@ -110,93 +151,97 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
     dispatch({ type: "SELECT_FILE", payload: item.id });
   };
 
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setMenuOpen(true);
+  };
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setHovered(false);
+  };
+
   const FolderIcon = isExpanded ? FolderOpen : Folder;
 
-  // Shared context menu button
   const menuButton = (
     <button
-      className="ml-auto flex size-5 shrink-0 items-center justify-center rounded opacity-0 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground group-hover/item:opacity-100"
-      onClick={(e) => {
-        e.stopPropagation();
-        setMenuOpen((o) => !o);
-      }}
+      ref={menuBtnRef}
+      className={`ml-auto flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:bg-sidebar-accent hover:text-foreground ${
+        hovered || menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
+      onClick={openMenu}
       id={`sidebar-menu-${item.id}`}
+      tabIndex={hovered || menuOpen ? 0 : -1}
     >
       <MoreHorizontal className="size-3" />
     </button>
   );
 
-  if (isFolder) {
-    if (depth === 0) {
-      return (
-        <>
-          {menuOpen && (
-            <div
-              className="fixed inset-0 z-20"
-              onClick={() => setMenuOpen(false)}
-            />
-          )}
-          <Collapsible open={isExpanded}>
-            <SidebarMenuItem className="relative group/item">
-              <CollapsibleTrigger
-                render={
-                  <SidebarMenuButton
-                    className="group pr-1"
-                    isActive={isSelectedFolder}
-                    onClick={handleFolderClick}
-                    id={`tree-folder-${item.id}`}
-                  >
-                    <ChevronRight
-                      className={`size-4 shrink-0 transition-transform duration-200 ${
-                        isExpanded ? "rotate-90" : ""
-                      }`}
-                    />
-                    <FolderIcon
-                      className={`size-4 shrink-0 ${
-                        isSelectedFolder
-                          ? "text-primary"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                    <span className="truncate flex-1">{item.name}</span>
-                    {menuButton}
-                  </SidebarMenuButton>
-                }
-              />
-              {menuOpen && (
-                <ContextMenu item={item} onClose={() => setMenuOpen(false)} />
-              )}
-              <CollapsibleContent>
-                {children.length > 0 && (
-                  <SidebarMenuSub>
-                    {children.map((child) => (
-                      <FolderTree key={child.id} item={child} depth={depth + 1} />
-                    ))}
-                  </SidebarMenuSub>
-                )}
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        </>
-      );
-    }
-
+  if (isFolder && depth === 0) {
     return (
       <>
-        {menuOpen && (
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setMenuOpen(false)}
-          />
-        )}
         <Collapsible open={isExpanded}>
-          <SidebarMenuSubItem className="relative group/item">
+          <SidebarMenuItem>
+            <CollapsibleTrigger
+              render={
+                <SidebarMenuButton
+                  className="pr-1"
+                  isActive={isSelectedFolder}
+                  onClick={handleFolderClick}
+                  onMouseEnter={() => setHovered(true)}
+                  onMouseLeave={() => !menuOpen && setHovered(false)}
+                  id={`tree-folder-${item.id}`}
+                >
+                  <ChevronRight
+                    className={`size-4 shrink-0 transition-transform duration-200 ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
+                  <FolderIcon
+                    className={`size-4 shrink-0 ${
+                      isSelectedFolder ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  />
+                  <span className="truncate flex-1">{item.name}</span>
+                  {menuButton}
+                </SidebarMenuButton>
+              }
+            />
+            <CollapsibleContent>
+              {children.length > 0 && (
+                <SidebarMenuSub>
+                  {children.map((child) => (
+                    <FolderTree key={child.id} item={child} depth={depth + 1} />
+                  ))}
+                </SidebarMenuSub>
+              )}
+            </CollapsibleContent>
+          </SidebarMenuItem>
+        </Collapsible>
+        {menuOpen && (
+          <ItemContextMenu item={item} position={menuPos} onClose={closeMenu} />
+        )}
+      </>
+    );
+  }
+
+  if (isFolder && depth > 0) {
+    return (
+      <>
+        <Collapsible open={isExpanded}>
+          <SidebarMenuSubItem>
             <CollapsibleTrigger
               render={
                 <SidebarMenuSubButton
                   isActive={isSelectedFolder}
-                  className="group pr-1"
+                  className="pr-1"
                   onClick={handleFolderClick}
+                  onMouseEnter={() => setHovered(true)}
+                  onMouseLeave={() => !menuOpen && setHovered(false)}
                   id={`tree-folder-${item.id}`}
                 >
                   <ChevronRight
@@ -206,9 +251,7 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                   />
                   <FolderIcon
                     className={`size-4 shrink-0 ${
-                      isSelectedFolder
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                      isSelectedFolder ? "text-primary" : "text-muted-foreground"
                     }`}
                   />
                   <span className="truncate flex-1">{item.name}</span>
@@ -216,9 +259,6 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                 </SidebarMenuSubButton>
               }
             />
-            {menuOpen && (
-              <ContextMenu item={item} onClose={() => setMenuOpen(false)} />
-            )}
             <CollapsibleContent>
               {children.length > 0 && (
                 <SidebarMenuSub>
@@ -230,24 +270,22 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
             </CollapsibleContent>
           </SidebarMenuSubItem>
         </Collapsible>
+        {menuOpen && (
+          <ItemContextMenu item={item} position={menuPos} onClose={closeMenu} />
+        )}
       </>
     );
   }
 
-  // File node
-  if (depth === 0) {
+  if (!isFolder && depth === 0) {
     return (
       <>
-        {menuOpen && (
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setMenuOpen(false)}
-          />
-        )}
-        <SidebarMenuItem className="relative group/item">
+        <SidebarMenuItem>
           <SidebarMenuButton
             isActive={isSelectedFile}
             onClick={handleFileClick}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => !menuOpen && setHovered(false)}
             className="pr-1"
             id={`tree-file-${item.id}`}
           >
@@ -259,26 +297,22 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
             <span className="truncate flex-1">{item.name}</span>
             {menuButton}
           </SidebarMenuButton>
-          {menuOpen && (
-            <ContextMenu item={item} onClose={() => setMenuOpen(false)} />
-          )}
         </SidebarMenuItem>
+        {menuOpen && (
+          <ItemContextMenu item={item} position={menuPos} onClose={closeMenu} />
+        )}
       </>
     );
   }
 
   return (
     <>
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-20"
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
-      <SidebarMenuSubItem className="relative group/item">
+      <SidebarMenuSubItem>
         <SidebarMenuSubButton
           isActive={isSelectedFile}
           onClick={handleFileClick}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => !menuOpen && setHovered(false)}
           className="pr-1"
           id={`tree-file-${item.id}`}
         >
@@ -290,10 +324,10 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
           <span className="truncate flex-1">{item.name}</span>
           {menuButton}
         </SidebarMenuSubButton>
-        {menuOpen && (
-          <ContextMenu item={item} onClose={() => setMenuOpen(false)} />
-        )}
       </SidebarMenuSubItem>
+      {menuOpen && (
+        <ItemContextMenu item={item} position={menuPos} onClose={closeMenu} />
+      )}
     </>
   );
 }
