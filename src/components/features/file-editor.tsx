@@ -1,12 +1,12 @@
- 
- 
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { useFileSystem } from "@/hooks/use-file-system";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { FileText, Save, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function FileEditor() {
     const { state, dispatch } = useWorkspace();
@@ -20,6 +20,10 @@ export function FileEditor() {
     const [isDirty, setIsDirty] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    useEffect(() => {
+        setLocalContent(savedContent);
+        setIsDirty(false);
+    }, [fileId]);
 
     const handleChange = (value: string) => {
         setLocalContent(value);
@@ -35,6 +39,16 @@ export function FileEditor() {
         setIsDirty(false);
     }, [fileId, localContent, dispatch]);
 
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                e.preventDefault();
+                if (isDirty) handleSave();
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isDirty, handleSave]);
 
     const handleClose = () => {
         dispatch({ type: "SELECT_FILE", payload: null });
@@ -90,6 +104,7 @@ export function FileEditor() {
                         : "All changes saved"}
                 </span>
             </div>
+
             <textarea
                 ref={textareaRef}
                 id={`editor-textarea-${fileId}`}
