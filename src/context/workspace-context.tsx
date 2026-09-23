@@ -2,11 +2,13 @@
 
 import {
   createContext,
+  useEffect,
   useReducer,
   type Dispatch,
   type ReactNode,
 } from "react";
 
+import { loadWorkspaceContents, loadWorkspaceItems } from "@/lib/storage";
 import type { WorkspaceAction, WorkspaceState } from "@/types";
 
 const initialState: WorkspaceState = {
@@ -93,9 +95,7 @@ function workspaceReducer(
                     [action.payload.id]: action.payload.content,
                 },
                 items: state.items.map((item) =>
-                    item.id === action.payload.id
-                        ? { ...item }
-                        : item,
+                    item.id === action.payload.id ? { ...item } : item,
                 ),
             };
         }
@@ -115,6 +115,16 @@ export const WorkspaceContext = createContext<WorkspaceContextValue | null>(
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const [state, dispatch] = useReducer(workspaceReducer, initialState);
+
+    useEffect(() => {
+        dispatch({
+            type: "INIT",
+            payload: {
+                items: loadWorkspaceItems(),
+                fileContents: loadWorkspaceContents(),
+            },
+        });
+    }, []);
 
     return (
         <WorkspaceContext.Provider value={{ state, dispatch }}>

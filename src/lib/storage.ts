@@ -1,7 +1,7 @@
 import type { WorkspaceItem } from "@/types";
 
-const workspaceItemsKey = "workspaceItems";
-const workspaceContentsKey = "workspaceContents";
+const workspaceItemsKey = "workspace_Items";
+const workspaceContentsKey = "workspace_Contents";
 
 export const workspaceItems: WorkspaceItem[] = [
     {
