@@ -1,8 +1,10 @@
 "use client";
 
+import { Breadcrumb } from "@/components/features/breadcrumb";
 import { CreateItemDialog } from "@/components/features/create-item-dialog";
 import { DeleteConfirmDialog } from "@/components/features/delete-confirm-dialog";
 import { EmptyState } from "@/components/features/empty-state";
+import { FileEditor } from "@/components/features/file-editor";
 import { ItemCard } from "@/components/features/item-card";
 import { RenameDialog } from "@/components/features/rename-confirm-dialog";
 import { SearchResultsPanel } from "@/components/features/search-panel-result";
@@ -22,11 +24,37 @@ export default function Home() {
     const [deleteItem, setDeleteItem] = useState<WorkspaceItem | null>(null);
 
     const isSearching = state.searchQuery.trim().length > 0;
+    const selectedFileOpen = state.selectedFileId !== null;
+
     const currentChildren = getChildren(state.selectedFolderId);
+
+    if (selectedFileOpen) {
+        return (
+            <>
+                <FileEditor />
+                {renameItem && (
+                    <RenameDialog
+                        open
+                        onClose={() => setRenameItem(null)}
+                        item={renameItem}
+                    />
+                )}
+                {deleteItem && (
+                    <DeleteConfirmDialog
+                        open
+                        onClose={() => setDeleteItem(null)}
+                        item={deleteItem}
+                    />
+                )}
+            </>
+        );
+    }
 
     return (
         <div className="flex h-full flex-col">
             <div className="flex shrink-0 items-center justify-between border-b bg-background/80 px-5 py-3 backdrop-blur-sm">
+                <Breadcrumb folderId={state.selectedFolderId} />
+
                 <Button
                     size="sm"
                     variant="outline"
