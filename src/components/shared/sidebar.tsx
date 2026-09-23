@@ -1,7 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { FolderOpen, HardDrive, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Sidebar,
@@ -30,8 +31,9 @@ export function AppSidebar() {
 
   const rootItems = getChildren(null);
 
-  // Calculate approximate localStorage usage
-  const storageUsed = (() => {
+  const [storageUsed, setStorageUsed] = useState("— / 5 MB");
+
+  useEffect(() => {
     try {
       let total = 0;
       for (const key of Object.keys(localStorage)) {
@@ -39,11 +41,11 @@ export function AppSidebar() {
           total += (localStorage.getItem(key) ?? "").length * 2; // UTF-16
         }
       }
-      return `${Math.round(total / 1024)} KB / 5 MB`;
+      setStorageUsed(`${Math.round(total / 1024)} KB / 5 MB`);
     } catch {
-      return "— / 5 MB";
+      setStorageUsed("— / 5 MB");
     }
-  })();
+  }, [state.items]);
 
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">

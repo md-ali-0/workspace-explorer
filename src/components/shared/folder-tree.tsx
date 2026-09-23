@@ -39,18 +39,21 @@ interface MenuPosition {
     left: number;
 }
 
+interface ItemContextMenuProps {
+    item: WorkspaceItem;
+    position: MenuPosition;
+    onClose: () => void;
+    onRename: () => void;
+    onDelete: () => void;
+}
+
 function ItemContextMenu({
     item,
     position,
     onClose,
-}: {
-    item: WorkspaceItem;
-    position: MenuPosition;
-    onClose: () => void;
-}) {
-    const [renameOpen, setRenameOpen] = useState(false);
-    const [deleteOpen, setDeleteOpen] = useState(false);
-
+    onRename,
+    onDelete,
+}: ItemContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
     const [adjustedPos, setAdjustedPos] = useState(position);
 
@@ -68,7 +71,7 @@ function ItemContextMenu({
     const menu = (
         <>
             <div
-                className="fixed inset-0 z-998"
+                className="fixed inset-0 z-40"
                 onClick={(e) => {
                     e.stopPropagation();
                     onClose();
@@ -77,7 +80,7 @@ function ItemContextMenu({
 
             <div
                 ref={menuRef}
-                className="fixed z-999 min-w-36 rounded-lg border bg-background p-1 shadow-xl"
+                className="fixed z-50 min-w-36 rounded-lg border bg-background p-1 shadow-xl"
                 style={{ top: adjustedPos.top, left: adjustedPos.left }}
                 onClick={(e) => e.stopPropagation()}
             >
@@ -85,9 +88,7 @@ function ItemContextMenu({
                     className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs text-foreground hover:bg-muted cursor-pointer"
                     onClick={() => {
                         onClose();
-                        setRenameOpen(true);
-                        console.log('clicked');
-                        
+                        onRename();
                     }}
                     id={`sidebar-rename-${item.id}`}
                 >
@@ -98,7 +99,7 @@ function ItemContextMenu({
                     className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
                     onClick={() => {
                         onClose();
-                        setDeleteOpen(true);
+                        onDelete();
                     }}
                     id={`sidebar-delete-${item.id}`}
                 >
@@ -106,25 +107,6 @@ function ItemContextMenu({
                     Delete
                 </button>
             </div>
-
-            {renameOpen &&
-                createPortal(
-                    <RenameDialog
-                        open
-                        onClose={() => setRenameOpen(false)}
-                        item={item}
-                    />,
-                    document.body,
-                )}
-            {deleteOpen &&
-                createPortal(
-                    <DeleteConfirmDialog
-                        open
-                        onClose={() => setDeleteOpen(false)}
-                        item={item}
-                    />,
-                    document.body,
-                )}
         </>
     );
 
@@ -138,6 +120,8 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
     const { getChildren } = useFileSystem();
 
     const [menuOpen, setMenuOpen] = useState(false);
+    const [renameOpen, setRenameOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<MenuPosition>({ top: 0, left: 0 });
     const [hovered, setHovered] = useState(false);
     const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -174,9 +158,10 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
     const FolderIcon = isExpanded ? FolderOpen : Folder;
 
     const menuButton = (
-        <button
+        <span
             ref={menuBtnRef}
-            className={`ml-auto flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:bg-sidebar-accent hover:text-foreground ${
+            role="button"
+            className={`ml-auto flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-opacity hover:bg-sidebar-accent hover:text-foreground cursor-pointer ${
                 hovered || menuOpen
                     ? "opacity-100"
                     : "opacity-0 pointer-events-none"
@@ -186,12 +171,12 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
             tabIndex={hovered || menuOpen ? 0 : -1}
         >
             <MoreHorizontal className="size-3" />
-        </button>
+        </span>
     );
 
-    if (isFolder && depth === 0) {
-        return (
-            <>
+    const renderTreeItem = () => {
+        if (isFolder && depth === 0) {
+            return (
                 <Collapsible open={isExpanded}>
                     <SidebarMenuItem>
                         <CollapsibleTrigger
@@ -240,20 +225,11 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                         </CollapsibleContent>
                     </SidebarMenuItem>
                 </Collapsible>
-                {menuOpen && (
-                    <ItemContextMenu
-                        item={item}
-                        position={menuPos}
-                        onClose={closeMenu}
-                    />
-                )}
-            </>
-        );
-    }
+            );
+        }
 
-    if (isFolder && depth > 0) {
-        return (
-            <>
+        if (isFolder && depth > 0) {
+            return (
                 <Collapsible open={isExpanded}>
                     <SidebarMenuSubItem>
                         <CollapsibleTrigger
@@ -302,20 +278,11 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                         </CollapsibleContent>
                     </SidebarMenuSubItem>
                 </Collapsible>
-                {menuOpen && (
-                    <ItemContextMenu
-                        item={item}
-                        position={menuPos}
-                        onClose={closeMenu}
-                    />
-                )}
-            </>
-        );
-    }
+            );
+        }
 
-    if (!isFolder && depth === 0) {
-        return (
-            <>
+        if (!isFolder && depth === 0) {
+            return (
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         isActive={isSelectedFile}
@@ -336,19 +303,10 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                         {menuButton}
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                {menuOpen && (
-                    <ItemContextMenu
-                        item={item}
-                        position={menuPos}
-                        onClose={closeMenu}
-                    />
-                )}
-            </>
-        );
-    }
+            );
+        }
 
-    return (
-        <>
+        return (
             <SidebarMenuSubItem>
                 <SidebarMenuSubButton
                     isActive={isSelectedFile}
@@ -369,13 +327,47 @@ export function FolderTree({ item, depth = 0 }: FolderTreeProps) {
                     {menuButton}
                 </SidebarMenuSubButton>
             </SidebarMenuSubItem>
+        );
+    };
+
+    return (
+        <>
+            {renderTreeItem()}
             {menuOpen && (
                 <ItemContextMenu
                     item={item}
                     position={menuPos}
                     onClose={closeMenu}
+                    onRename={() => {
+                        closeMenu();
+                        setRenameOpen(true);
+                    }}
+                    onDelete={() => {
+                        closeMenu();
+                        setDeleteOpen(true);
+                    }}
                 />
             )}
+            {renameOpen &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    <RenameDialog
+                        open={renameOpen}
+                        onClose={() => setRenameOpen(false)}
+                        item={item}
+                    />,
+                    document.body,
+                )}
+            {deleteOpen &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    <DeleteConfirmDialog
+                        open={deleteOpen}
+                        onClose={() => setDeleteOpen(false)}
+                        item={item}
+                    />,
+                    document.body,
+                )}
         </>
     );
 }
