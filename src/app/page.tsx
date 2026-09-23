@@ -2,8 +2,10 @@
 
 import { CreateItemDialog } from "@/components/features/create-item-dialog";
 import { DeleteConfirmDialog } from "@/components/features/delete-confirm-dialog";
+import { EmptyState } from "@/components/features/empty-state";
 import { ItemCard } from "@/components/features/item-card";
 import { RenameDialog } from "@/components/features/rename-confirm-dialog";
+import { SearchResultsPanel } from "@/components/features/search-panel-result";
 import { Button } from "@/components/ui/button";
 import { useFileSystem } from "@/hooks/use-file-system";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -19,6 +21,7 @@ export default function Home() {
     const [renameItem, setRenameItem] = useState<WorkspaceItem | null>(null);
     const [deleteItem, setDeleteItem] = useState<WorkspaceItem | null>(null);
 
+    const isSearching = state.searchQuery.trim().length > 0;
     const currentChildren = getChildren(state.selectedFolderId);
 
     return (
@@ -37,16 +40,22 @@ export default function Home() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                    {currentChildren.map((item) => (
-                        <ItemCard
-                            key={item.id}
-                            item={item}
-                            onRename={setRenameItem}
-                            onDelete={setDeleteItem}
-                        />
-                    ))}
-                </div>
+                {isSearching ? (
+                    <SearchResultsPanel />
+                ) : currentChildren.length === 0 ? (
+                    <EmptyState onCreateClick={() => setCreateOpen(true)} />
+                ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {currentChildren.map((item) => (
+                            <ItemCard
+                                key={item.id}
+                                item={item}
+                                onRename={setRenameItem}
+                                onDelete={setDeleteItem}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             <CreateItemDialog
