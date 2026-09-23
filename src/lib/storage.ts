@@ -22,10 +22,6 @@ export const workspaceContents: Record<string, string> = {
     "2": "This is the content of File 1.",
 };
 
-export function saveWorkspaceItems(items: WorkspaceItem[]): void {
-    localStorage.setItem(workspaceItemsKey, JSON.stringify(items));
-}
-
 export function loadWorkspaceItems(): WorkspaceItem[] {
     const itemsJson = localStorage.getItem(workspaceItemsKey);
     if (itemsJson) {
@@ -39,6 +35,29 @@ export function loadWorkspaceItems(): WorkspaceItem[] {
     return workspaceItems;
 }
 
+export function saveWorkspaceItems(items: WorkspaceItem[]): void {
+    localStorage.setItem(workspaceItemsKey, JSON.stringify(items));
+}
+
+export function loadWorkspaceContents(): Record<string, string> {
+    const contentsJson = localStorage.getItem(workspaceContentsKey);
+    if (contentsJson) {
+        try {
+            const contents = JSON.parse(contentsJson) as Record<string, string>;
+            return contents;
+        } catch (error) {
+            console.error("Failed to parse workspace contents from localStorage:", error);
+        }
+    }
+    return workspaceContents;
+}
+
 export function saveWorkspaceContents(contents: Record<string, string>): void {
     localStorage.setItem(workspaceContentsKey, JSON.stringify(contents));
+}
+
+
+export function clearStorage(): void {
+  localStorage.removeItem(workspaceItemsKey);
+  localStorage.removeItem(workspaceContentsKey);
 }
