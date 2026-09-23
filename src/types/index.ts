@@ -59,3 +59,8 @@ export type WorkspaceAction =
           type: "UPDATE_CONTENT";
           payload: { id: string; content: string };
       };
+
+export interface SearchResult {
+    item: WorkspaceItem;
+    breadcrumb: string[];
+}

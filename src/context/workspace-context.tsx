@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { loadWorkspaceContents, loadWorkspaceItems } from "@/lib/storage";
+import { loadWorkspaceContents, loadWorkspaceItems, saveWorkspaceContents, saveWorkspaceItems } from "@/lib/storage";
 import type { WorkspaceAction, WorkspaceState } from "@/types";
 
 const initialState: WorkspaceState = {
@@ -125,6 +125,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             },
         });
     }, []);
+
+    useEffect(() => {
+        if (state.items.length > 0) {
+            saveWorkspaceItems(state.items);
+        }
+    }, [state.items]);
+
+    useEffect(() => {
+        if (Object.keys(state.fileContents).length > 0) {
+            saveWorkspaceContents(state.fileContents);
+        }
+    }, [state.fileContents]);
 
     return (
         <WorkspaceContext.Provider value={{ state, dispatch }}>
