@@ -1,7 +1,9 @@
 "use client";
 
+import { CreateItemDialog } from "@/components/features/create-item-dialog";
+import { DeleteConfirmDialog } from "@/components/features/delete-confirm-dialog";
 import { ItemCard } from "@/components/features/item-card";
-import { CreateItemDialog } from "@/components/shared/create-item-dialog";
+import { RenameDialog } from "@/components/features/rename-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { useFileSystem } from "@/hooks/use-file-system";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -34,7 +36,6 @@ export default function Home() {
                 </Button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto p-5">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                     {currentChildren.map((item) => (
@@ -48,12 +49,25 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* Dialogs */}
             <CreateItemDialog
                 open={createOpen}
                 onClose={() => setCreateOpen(false)}
                 parentId={state.selectedFolderId}
             />
+            {renameItem && (
+                <RenameDialog
+                    open
+                    onClose={() => setRenameItem(null)}
+                    item={renameItem}
+                />
+            )}
+            {deleteItem && (
+                <DeleteConfirmDialog
+                    open
+                    onClose={() => setDeleteItem(null)}
+                    item={deleteItem}
+                />
+            )}
         </div>
     );
 }

@@ -68,7 +68,6 @@ export function CreateItemDialog({
 
     dispatch({ type: "CREATE_ITEM", payload: newItem });
 
-    // If it's a file, open it immediately
     if (type === "file") {
       dispatch({ type: "SELECT_FILE", payload: newItem.id });
     }
