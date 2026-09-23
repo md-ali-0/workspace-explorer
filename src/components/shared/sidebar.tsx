@@ -1,31 +1,49 @@
 "use client";
 
-import { FolderOpen, HardDrive } from "lucide-react";
+import { FolderOpen, HardDrive, Plus } from "lucide-react";
+import { useState } from "react";
 
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarSeparator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 
 import { FolderTree } from "@/components/shared/folder-tree";
 import { useFileSystem } from "@/hooks/use-file-system";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { storageUsed } from "@/utils/storage-usages";
+import { CreateItemDialog } from "../features/create-item-dialog";
 
 export function AppSidebar() {
-  const { dispatch } = useWorkspace();
+  const { state, dispatch } = useWorkspace();
   const { getChildren } = useFileSystem();
+  const [createOpen, setCreateOpen] = useState(false);
 
   const rootItems = getChildren(null);
+
+  // Calculate approximate localStorage usage
+  const storageUsed = (() => {
+    try {
+      let total = 0;
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith("wse_v1")) {
+          total += (localStorage.getItem(key) ?? "").length * 2; // UTF-16
+        }
+      }
+      return `${Math.round(total / 1024)} KB / 5 MB`;
+    } catch {
+      return "— / 5 MB";
+    }
+  })();
 
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">
@@ -63,6 +81,15 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Explorer</SidebarGroupLabel>
 
+          <SidebarGroupAction
+            title="New item in current folder"
+            onClick={() => setCreateOpen(true)}
+            id="sidebar-new-item"
+          >
+            <Plus className="size-4" />
+            <span className="sr-only">New item</span>
+          </SidebarGroupAction>
+
           <SidebarGroupContent>
             <SidebarMenu>
               {rootItems.length === 0 ? (
@@ -98,6 +125,12 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <CreateItemDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        parentId={state.selectedFolderId}
+      />
     </Sidebar>
   );
 }
